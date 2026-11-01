@@ -1,11 +1,14 @@
 # ½ sampler (FM-½ Sampler)
 
-Um sampler grátis que roda no navegador. Toque com o teclado do computador, o celular, um controle de videogame ou qualquer teclado MIDI.
-Ele foi feito para o **M-VAVE FM-1**: o nome quer dizer que ele é *meio* sampler, e a outra metade é o FM-1.
+Um sampler grátis que roda em qualquer lugar: no navegador do computador ou do celular, sem instalar nada.
+Toque com o que tiver por perto: o teclado do computador, a tela do celular, um controle de videogame, qualquer teclado ou controlador MIDI.
 
-**Abra e toque, sem instalar: https://sampler.half.social**
+O nome quer dizer que ele é *meio* sampler: a outra metade é você e o seu instrumento.
+Ele nasceu junto com o M-VAVE FM-1 e conversa com ele pela USB (samples, temas, PLAY e REC juntos), mas vai muito além dele.
 
-*A free sampler that runs in the browser. Play it with your computer keyboard, your phone, a gamepad or any MIDI keyboard. Made for the M-VAVE FM-1: it is "half" a sampler, the FM-1 is the other half.*
+**Abra e toque: https://sampler.half.social**
+
+*A free sampler that runs anywhere: in the browser, on your computer or phone, nothing to install. Play it with whatever is around: your computer keyboard, your phone's screen, a gamepad, any MIDI keyboard or controller. It is "half" a sampler: the other half is you and your instrument. It was born alongside the M-VAVE FM-1 and talks to it over USB, but it goes far beyond it.*
 
 ## O que ele faz
 - 48 pads em 4 grupos, com fatias, notas (KEYS), envelope, filtros e afinação.
