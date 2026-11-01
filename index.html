@@ -854,6 +854,7 @@ body:has(#libCard.on, #panCard.on) #scrFloat:not(.big) { display: none; }
     <span class="langw"><button class="btn l" id="mtProjB" title="guardar e abrir projetos"><i class="fa-solid fa-folder-open"></i><span class="bt">Projetos</span></button>
       <div class="mtpm" id="mtProjM"><div class="row" style="gap:6px"><input class="inp" id="mtProjName" placeholder="nome do projeto" style="flex:1;min-width:0"><button class="btn o" id="mtProjSave"><i class="fa-solid fa-floppy-disk"></i>Salvar</button></div>
         <button class="btn l" id="mtProjNew" style="margin-top:8px"><i class="fa-regular fa-file"></i>Novo projeto</button><div id="mtProjL" style="margin-top:8px"></div></div></span>
+    <button class="btn l" id="mtClear" title="parar tudo e limpar as faixas para recomeçar (⟲ desfaz)"><i class="fa-solid fa-broom"></i><span class="bt">Limpar</span></button>
     <button class="btn l mtk" id="mtPlay" title="tocar / parar (parar de novo volta ao início)"><i class="fa-solid fa-play"></i></button>
     <button class="btn l mtk rec" id="mtRec" title="gravar na faixa marcada"><i class="fa-solid fa-circle"></i></button>
     <span class="mttime" id="mtTime" data-notr>0:00.0</span>
@@ -3016,6 +3017,7 @@ const mtid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,
 const mtTrack = (k) => ({ id: mtid(), name: 'Faixa ' + (k + 1), color: MTCOL[k % MTCOL.length], vol: 1, pan: 0, mute: false, solo: false, src: 'sampler' });
 // (the user) pixel meshes for the tracks' dark: 3 of 4 pixels black; the armed lane 1 of 4 orange
 let mtPat = null;
+function mtTint(hex, a) { const n = parseInt(hex.slice(1), 16), m = (c) => Math.round(18 + (c - 18) * a); return `rgb(${m(n >> 16)},${m((n >> 8) & 255)},${m(n & 255)})`; }   // (a track colour over the dark lane, solid)
 function mtMesh(g) { const mk = (cells, col) => { const c = document.createElement('canvas'); c.width = c.height = 4; const x = c.getContext('2d'); x.fillStyle = col; cells.forEach(([a, b]) => x.fillRect(a, b, 2, 2)); return g.createPattern(c, 'repeat'); };
   return { dark: mk([[0, 0], [2, 0], [0, 2]], '#0b0b0b'), or: mk([[2, 2]], 'rgba(255,90,31,.35)') }; }
 let mtBus = null, mtCv = null, mtG = null, mtSaveT = 0, mtDrag = null, mtDelT = 0, mtHot = null, mtNewT = 0;
@@ -3067,6 +3069,7 @@ async function mtStart() {
   for (const t of MT.tracks) { const g = ac.createGain(), pn = ac.createStereoPanner(); pn.pan.value = t.pan; g.connect(pn); pn.connect(mtBus); MT.tg[t.id] = g; } mtGains();
   const lp = MT.loop, useLoop = lp.on && lp.b - lp.a > 0.05 && !MT.recOn && MT.pos < lp.b;   // (the user) the loop: to its end, then its stretch again and again
   mtPass(ac, MT.tg, MT.pos0, useLoop ? lp.b : Infinity, MT.t0, MT.srcs); ntPass(MT.pos0, useLoop ? lp.b : Infinity, MT.t0); MT.loopRun = useLoop ? { a: lp.a, b: lp.b, next: MT.t0 + (lp.b - MT.pos0) } : null;
+  mtShow();
   const beat = 60 / S.bpm; MT.nb = Math.ceil(MT.pos0 / beat - 1e-6);
   MT.timer = setInterval(() => { const L = MT.loopRun; if (L && ac.currentTime > L.next - 0.3) { mtPass(ac, MT.tg, L.a, L.b, L.next, MT.srcs); ntPass(L.a, L.b, L.next); L.next += L.b - L.a; }
     if (!MT.metro) return; const bt = 60 / S.bpm; for (;;) { const tb = MT.t0 + MT.nb * bt - MT.pos0; if (tb > ac.currentTime + 0.25) break; if (tb >= ac.currentTime - 0.02) { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = MT.nb % 4 ? 1000 : 1600; g.gain.setValueAtTime(0.25, tb); g.gain.exponentialRampToValueAtTime(0.001, tb + 0.05); o.connect(g); g.connect(ac.destination); o.start(tb);   /* (the click only in the ears, never in a recording) */ o.stop(tb + 0.06); } MT.nb++; } }, 40);
@@ -3093,18 +3096,19 @@ function mtLoop() {
   requestAnimationFrame(mtLoop); const r = mtCv.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight || !r.width) return;
   const W = r.width, H = MT_RUL + MT.tracks.length * MT_RH, dpr = devicePixelRatio || 1, g = mtG;
   if (mtCv.height !== Math.round(H * dpr) || mtCv.width !== Math.round(W * dpr)) { mtCv.style.height = H + 'px'; mtCv.width = Math.round(W * dpr); mtCv.height = Math.round(H * dpr); }
-  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); const dock = document.body.classList.contains('dock') && innerWidth > 760, lt = false, INK = '#fff';   // (the user) the tracks always dark if (!mtPat) mtPat = mtMesh(g); if (!dock) { g.fillStyle = '#0d0d0d'; g.fillRect(0, 0, W, H); } const now = mtNow();
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); const dock = document.body.classList.contains('dock') && innerWidth > 760, lt = false, INK = '#fff'; if (!mtPat) mtPat = mtMesh(g); g.fillStyle = '#111112'; g.fillRect(0, 0, W, H); const now = mtNow();   // (the user) the tracks always dark, solid
   if (MT.playing && mtX(now) > W - 30) MT.scroll = now - 30 / MT.zoom;
-  MT.tracks.forEach((t, k) => { const y = MT_RUL + k * MT_RH; if (t.id === MT.armed) { g.fillStyle = mtPat.or; g.fillRect(0, y, W, MT_RH); } g.fillStyle = lt ? '#cfcfcb' : '#262626'; g.fillRect(0, y + MT_RH - 1, W, 1); });
+  MT.tracks.forEach((t, k) => { const y = MT_RUL + k * MT_RH; g.fillStyle = t.id === MT.armed ? '#24180f' : k % 2 ? '#151515' : '#121212'; g.fillRect(0, y, W, MT_RH); g.fillStyle = '#262626'; g.fillRect(0, y + MT_RH - 1, W, 1); });   // (the user) solid lanes, the marked one warm
   if (!dock) { g.fillStyle = '#171717'; g.fillRect(0, 0, W, MT_RUL); } else { g.fillStyle = lt ? 'rgba(0,0,0,.2)' : 'rgba(255,255,255,.18)'; g.fillRect(0, MT_RUL - 1, W, 1); }
   if (MT.loop.b - MT.loop.a > 0.01) { const la = mtX(MT.loop.a), lb = mtX(MT.loop.b); g.fillStyle = MT.loop.on ? 'rgba(255,90,31,.45)' : 'rgba(255,255,255,.12)'; g.fillRect(la, 2, lb - la, MT_RUL - 4); if (MT.loop.on) { g.fillStyle = 'rgba(255,90,31,.06)'; g.fillRect(la, MT_RUL, lb - la, H); g.fillStyle = 'rgba(255,90,31,.5)'; g.fillRect(la, MT_RUL, 1, H); g.fillRect(lb - 1, MT_RUL, 1, H); } }
   const beat = 60 / S.bpm, bar = beat * 4, step = MT.zoom * beat < 9 ? bar : beat; g.font = '600 10px "Space Grotesk", sans-serif'; g.textAlign = 'left';
   for (let i = Math.floor(MT.scroll / step); ; i++) { const t = i * step, x = Math.round(mtX(t)) + 0.5; if (x > W) break; const isBar = Math.abs(t / bar - Math.round(t / bar)) < 1e-6; g.fillStyle = lt ? (isBar ? '#b9b9b5' : '#d6d6d2') : isBar ? '#2a2a2a' : '#191919'; g.fillRect(x, isBar ? 0 : MT_RUL, 1, H); if (isBar) { g.fillStyle = lt ? '#666' : '#8a8a8a'; g.fillText(String(Math.round(t / bar) + 1), x + 4, 15); } }
   for (const c of MT.clips) {
     const k = MT.tracks.findIndex((t) => t.id === c.tr); if (k < 0) continue; const t = MT.tracks[k], x = mtX(c.at), w = Math.max(2, c.len * MT.zoom), y = MT_RUL + k * MT_RH + 3, h = MT_RH - 7; if (x + w < 0 || x > W) continue;
-    g.fillStyle = t.color + '2e'; g.fillRect(x, y, w, h); g.fillStyle = t.color; g.fillRect(x, y, w, 2);
+    g.fillStyle = mtTint(t.color, 0.3); g.fillRect(x, y, w, h); g.fillStyle = t.color; g.fillRect(x, y, w, 3);   // (the user) a solid clip, its colour clear
     const b = MT.bufs.get(c.bid); if (b) { const d = b.getChannelData(0), sr = b.sampleRate, mid = y + h / 2 + 5, amp = (h - 14) / 2, i0 = Math.max(0, Math.floor(-x)), i1 = Math.min(Math.floor(w), Math.ceil(W - x)); g.fillStyle = t.color;
       for (let i = i0; i < i1; i++) { const a = Math.floor((c.off + i / MT.zoom) * sr), e = Math.min(d.length, Math.floor((c.off + (i + 1) / MT.zoom) * sr)); let m = 0; for (let j = a, st = Math.max(1, ((e - a) / 32) | 0); j < e; j += st) { const v = Math.abs(d[j]); if (v > m) m = v; } const hh = Math.max(0.5, m * amp); g.fillRect(x + i, mid - hh, 1, hh * 2); } } else mtNeed(c.bid);
+    if (MT.playing && now >= c.at && now < c.at + c.len) { g.fillStyle = '#fff'; g.fillRect(x, y + h - 2, w, 2); }   // (the user) what is sounding now: a white line under it
     if (w > 30) { g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.fillStyle = INK; g.font = '600 10px "Space Grotesk", sans-serif'; g.fillText(c.name || '', x + 5, y + 13); g.restore(); }
     const G = mtGeom(c), on = MT.sel === c.id, gv = c.gain ?? 1;
     if (on || c.fi || c.fo || gv !== 1) { const fx = x + (c.fi || 0) * MT.zoom, ox = x + w - (c.fo || 0) * MT.zoom, by = y + h - 1;   // (the user) the clip's volume line and fades
@@ -3206,6 +3210,17 @@ function mtProjOpen(n) {
   const p = mtProjs()[n]; if (!p) return; if (MT.playing) mtStop(); MT.tracks = JSON.parse(JSON.stringify(p.tracks)); MT.clips = JSON.parse(JSON.stringify(p.clips)); MT.notes = JSON.parse(JSON.stringify(p.notes || [])); MT.loop = p.loop || { a: 0, b: 0, on: false };
   if (p.bpm) { S.bpm = p.bpm; applyFX(); save(); ctlUI(); } MT.armed = MT.tracks[0] && MT.tracks[0].id; MT.sel = null; MT.undo = []; MT.pos = 0; MT.scroll = 0; MT.proj = n; MT.clips.forEach((c) => mtNeed(c.bid)); mtHeads(); mtUI(); mtSave(); mtProjUI(); toast('Projeto aberto: ' + n);
 }
+function mtShow() {   // (the user) on PLAY, bring into view what is going to sound: its track (scrolled down if hidden) and its time
+  const from = MT.pos, items = [...MT.clips.map((c) => [c.tr, c.at, c.at + c.len]), ...MT.notes.map((n) => [n.tr, n.at, n.at + n.dur])].filter((q) => q[2] > from).sort((a, b) => a[1] - b[1]); if (!items.length) return;
+  const [tr, at] = items[0], k = MT.tracks.findIndex((t) => t.id === tr), body = mtCv && mtCv.closest('.mtbody'); const W = mtCv ? mtCv.getBoundingClientRect().width : 0;
+  if (W && (mtX(at) < 0 || mtX(at) > W - 40)) MT.scroll = Math.max(0, at - 20 / MT.zoom);
+  if (body && k >= 0) { const y = MT_RUL + k * MT_RH, top = body.scrollTop, h = body.clientHeight; if (y < top || y + MT_RH > top + h) body.scrollTo({ top: Math.max(0, y - MT_RUL), behavior: 'smooth' }); }
+}
+function mtClear() {   // (the user) stop all and empty the tracks to start again; the tracks stay, undo brings it back
+  const any = MT.clips.length || MT.notes.length; if (any && performance.now() - mtNewT > 2500) { mtNewT = performance.now(); return toast(T('Aperte de novo para limpar as faixas')); } mtNewT = 0;
+  if (MT.recOn) mtRecStop(); if (MT.playing) mtStop(); if (typeof baseStop === 'function' && BASE.on) baseStop(); mixStop(); stopAll();
+  if (any) mtSnapshot(); MT.clips = []; MT.notes = []; MT.loop = { a: 0, b: 0, on: false }; MT.sel = null; MT.pos = 0; MT.scroll = 0; mtSave(); mtUI(); toast(T(any ? 'Faixas limpas. Para desfazer: ⟲' : 'Tudo parado'));
+}
 function mtProjNew() {
   if (MT.clips.length && performance.now() - mtNewT > 2500) { mtNewT = performance.now(); return toast('Aperte de novo para começar um projeto novo'); }
   if (MT.playing) mtStop(); MT.tracks = Array.from({ length: 6 }, (_, k) => mtTrack(k)); MT.clips = []; MT.notes = []; MT.loop = { a: 0, b: 0, on: false }; MT.armed = MT.tracks[0].id; MT.sel = null; MT.undo = []; MT.pos = 0; MT.scroll = 0; MT.proj = ''; mtHeads(); mtUI(); mtSave(); mtProjUI();
@@ -3292,14 +3307,14 @@ function cloudField(cw, ch, cell) {
 function bgDraw() {
   const cv0 = $('#dockBg'), dock = document.body.classList.contains('dock') && innerWidth > 760; if (!dock) return; const r = $('#mtp').getBoundingClientRect(), plain = BGS.src === 'none' || !bgMedia, darkM = document.documentElement.classList.contains('dark'), px = plain ? clamp(BGS.px - 2, 2, 32) : BGS.px, cw = Math.max(1, Math.ceil(r.width / px)), ch = Math.max(1, Math.ceil(r.height / px));
   if (cv0.width !== cw || cv0.height !== ch) { cv0.width = cw; cv0.height = ch; } const x = cv0.getContext('2d', { willReadFrequently: true }), light = false, den = Math.max(0.9, BGS.den);   // (the user) the tracks always dark, a dense dither: little of the sampler seen behind
-  const N = den >= 0.99 ? 0 : clamp(Math.round(1 / (1 - den)), 2, 32), hole = (i, j) => N && (i + j) % N === 0;   // (the user) the mesh inclined: diagonal lines of holes
+  const N = den >= 0.99 ? 0 : clamp(Math.round(1 / (1 - den)), 2, 32), hole = () => false;   // (the user) the mesh inclined: diagonal lines of holes
   let im;
   if (BGS.src === 'none' || !bgMedia || (bgMedia.tagName === 'IMG' && !bgMedia.complete) || (bgMedia.tagName === 'VIDEO' && bgMedia.readyState < 2)) {
     im = x.createImageData(cw, ch); const d = im.data;
     const F = cloudField(cw, ch, px), op = den, side = Math.ceil(236 / px);   // (the user) clouds: light = blue dots on white; dark = light clouds on a navy sky; some pixels left open (the transparency)
     const TP = palTheme.last, A0 = TP ? TP.l : [232, 230, 220], A = A0.map((c) => Math.round(c * 0.38)), Bk = TP ? TP.d.map((c) => Math.round(c * 0.6)) : [12, 14, 26];   // (dim clouds on a near-black sky)
     for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) { const k = (j * cw + i) * 4;   // (the user) the tracks: near black, a quiet pixel weave, few holes to the sampler behind
-      if (((i * 5 + j * 3) % 16) / 16 >= op) continue; const b = BAY[(j & 3) * 4 + (i & 3)], v = b < 2 ? 30 : b < 5 ? 20 : 13; d[k] = v; d[k + 1] = v; d[k + 2] = v + 2; d[k + 3] = 255; }
+      d[k] = 17; d[k + 1] = 17; d[k + 2] = 18; d[k + 3] = 255; }   // (the user) a solid background, nothing of the sampler behind
   } else {
     if (!bgSrcCv) bgSrcCv = document.createElement('canvas'); bgSrcCv.width = cw; bgSrcCv.height = ch; const sx = bgSrcCv.getContext('2d', { willReadFrequently: true });
     const mw = bgMedia.videoWidth || bgMedia.naturalWidth, mh = bgMedia.videoHeight || bgMedia.naturalHeight, sc = Math.max(cw / mw, ch / mh); sx.imageSmoothingEnabled = true; sx.drawImage(bgMedia, (cw - mw * sc) / 2, (ch - mh * sc) / 2, mw * sc, mh * sc);
@@ -3652,7 +3667,7 @@ function ntGeom(n) { const k = MT.tracks.findIndex((t) => t.id === n.tr), x = mt
 function ntHitAt(x, y) { for (let j = MT.notes.length - 1; j >= 0; j--) { const n = MT.notes[j], G = ntGeom(n); if (G.k < 0) continue; if (x >= G.x - 2 && x <= G.x + G.w + 2 && y >= G.y - 2 && y <= G.y + G.h + 2) return n; } return null; }
 function ntDraw(g, W, lt) {
   for (const n of MT.notes) { const G = ntGeom(n); if (G.k < 0 || G.x > W || G.x + G.w < 0) continue; const t = MT.tracks[G.k];
-    g.fillStyle = t.color; g.globalAlpha = 0.45 + 0.55 * (n.vel / 127); g.fillRect(G.x, G.y, G.w, G.h); g.globalAlpha = 1; if (ntSel === n.id) { g.strokeStyle = lt ? '#111' : '#fff'; g.lineWidth = 1.2; g.strokeRect(G.x - 0.5, G.y - 0.5, G.w + 1, G.h + 1); } }
+    g.fillStyle = t.color; g.globalAlpha = 0.75 + 0.25 * (n.vel / 127); g.fillRect(G.x, G.y, Math.max(3, G.w), Math.max(3, G.h)); g.globalAlpha = 1; if (ntSel === n.id) { g.strokeStyle = lt ? '#111' : '#fff'; g.lineWidth = 1.2; g.strokeRect(G.x - 0.5, G.y - 0.5, G.w + 1, G.h + 1); } }
   MT.tracks.forEach((t, k) => { if (t.src !== 'notas') return; const ly = MT_RUL + k * MT_RH + 4, rh = (MT_RH - 10) / 12; g.fillStyle = lt ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.04)'; for (let r = 0; r < 12; r += 2) g.fillRect(0, ly + r * rh, W, rh); });
 }
 function ntQuant() { const t = MT.tracks.find((q) => q.id === MT.armed), q = 60 / S.bpm / 4, list = MT.notes.filter((n) => ntSel ? n.id === ntSel : t && n.tr === t.id); if (!list.length) return toast(T('Nenhuma nota para quantizar')); mtSnapshot(); list.forEach((n) => { n.at = Math.max(0, Math.round(n.at / q) * q); n.dur = Math.max(q / 2, Math.round(n.dur / q) * q || q / 2); }); mtSave(); toast(T('Notas no tempo (1/16)')); }
@@ -3664,6 +3679,7 @@ function mtBind() {
   $('#mtProjName').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); mtProjSave(); } }, true);
   document.addEventListener('click', () => $('#mtProjM').classList.remove('on'));
   $('#mtPlay').onclick = () => MT.playing ? mtStop() : mtStart(); $('#mtRec').onclick = mtRec;
+  $('#mtClear').onclick = mtClear;
   $('#mtAddT').onclick = () => { if (MT.tracks.length >= 16) return toast('Máximo de 16 faixas'); MT.tracks.push(mtTrack(MT.tracks.length)); mtHeads(); mtSave(); };
   $('#mtPad').onclick = () => { const p = cur(); if (!p.buf) return toast('Pad vazio: segure o pad para gravar, ou carregue um arquivo.'); const n = p.buf.length; mtAdd(cut(p.buf, Math.floor(p.start * n), Math.ceil(p.end * n)), MT.armed, MT.pos, p.name || GROUPS[S.grp] + LBL[S.sel]); toast('Pad na faixa'); };
   $('#mtCapt').onclick = captStart; $('#mtQuant').onclick = ntQuant; $('#mtSplit').onclick = mtSplit; $('#mtDup').onclick = mtDup; $('#mtDel').onclick = mtDelClip; $('#mtUndo').onclick = mtUndo; $('#mtExp').onclick = mtExport;
