@@ -1,0 +1,18 @@
+# Só o que é do sampler vai para o repositório (o resto fica local).
+/*
+!/.gitignore
+!/README.md
+!/LICENSE
+!/index.html
+!/sampler-i18n.js
+!/serve.py
+!/build-online.py
+!/vis/
+!/seo/
+/seo/*
+!/seo/og.html
+!/seo/og.png
+!/seo/device.png
+!/seo/robots.txt
+!/seo/sitemap.xml
+.DS_Store

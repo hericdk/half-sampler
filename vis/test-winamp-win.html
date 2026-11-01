@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>winampFM janela: teste</title>
+<style>
+  :root { --bg: #000; --fg: #fff; --dim: #888; }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font: 12px/1.4 ui-monospace, Menlo, monospace; }
+  header { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  button { background: #000; color: #fff; border: 1px solid #fff; padding: 4px 10px; font: inherit; cursor: pointer; }
+  button:hover { border-color: #0040FF; color: #0040FF; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(480px, 1fr)); gap: 16px; }
+  figure { margin: 0; }
+  canvas { width: 480px; height: 480px; max-width: 100%; image-rendering: pixelated; display: block; background: #000; }
+  figcaption { color: var(--dim); margin-top: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <strong>winampFM: os 28 quadros (GV_NAME), sinal sintético</strong>
+  <button id="play">PLAY: ligado</button>
+  <span id="fps"></span>
+</header>
+<div class="grid" id="grid"></div>
+<script src="core.js"></script>
+<script src="winamp-vid.js"></script>
+<script src="winamp-win.js"></script>
+<script>
+(function () {
+  'use strict';
+  const V = window.FM1VIS, list = V.list.filter((v) => v.fam === 'winampFM janela'), grid = document.getElementById('grid');
+  const A = V.audio(); A.playing = 1; A.bpm = 120; A.name = 'SAMPLER';
+  const items = list.map((v) => {
+    const f = document.createElement('figure'), c = document.createElement('canvas'), cap = document.createElement('figcaption');
+    c.width = v.w, c.height = v.h; cap.textContent = v.name + '  (' + v.id + ')';
+    f.append(c, cap); grid.append(f);
+    const ctx = c.getContext('2d');
+    return { v, S: V.state(v), ctx, img: ctx.createImageData(v.w, v.h) };
+  });
+  document.getElementById('play').onclick = (e) => { A.playing ^= 1; e.target.textContent = 'PLAY: ' + (A.playing ? 'ligado' : 'desligado'); };
+  let seed = 1, t0 = performance.now(), last = t0, frames = 0, fpsT = t0;
+  const rnd = () => (seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) / 4294967296;
+  function feed(now) {   /* a sine sweep plus noise bursts into the ring, a kick every 500 ms with hits on tracks 0..3 */
+    const dt = Math.min(100, now - last); last = now;
+    const n = Math.round(dt * 22.05);
+    for (let k = 0; k < n; k++) {
+      const t = A.scope_w / 22050, fr = 60 + 4000 * ((t * 0.2) % 1), burst = Math.floor(t * 4) % 3 === 0 ? (rnd() * 2 - 1) * 0.5 : 0;
+      const s = A.playing ? Math.sin(2 * Math.PI * fr * t) * 0.5 + burst : 0;
+      A.scope_buf[A.scope_w & 511] = Math.round(s * 32767);
+      A.scope_bufr[A.scope_w & 511] = Math.round(s * 0.8 * 32767);
+      A.scope_w = (A.scope_w + 1) >>> 0;
+    }
+    const ms = now - t0, beat = Math.floor(ms / 500), pb = Math.floor((ms - dt) / 500);
+    A.hits = []; A.kick = 0;
+    if (A.playing && beat !== pb) { A.kick = 1; for (let tr = 0; tr < 4; tr++) A.hits.push({ trk: tr, note: [36, 39, 60 + (beat % 12), 72 + (beat * 5) % 12][tr], vel: 100 }); }
+    for (let tr = 0; tr < 4; tr++) A.trk_peak[tr] = A.kick ? 30000 : 8000;
+    A.ms = (100000 + ms) >>> 0; A.frame = (A.frame + 1) >>> 0; A.beat_q8 = Math.floor(ms * A.bpm / 60000 * 256);
+  }
+  function loop(now) {
+    feed(now);
+    for (const it of items) { it.v.draw(it.S, A); V.blit(it.S.fb, it.img); it.ctx.putImageData(it.img, 0, 0); }
+    frames++;
+    if (now - fpsT > 1000) { document.getElementById('fps').textContent = frames + ' fps (os quadros andam a 20 fps, como no firmware)'; frames = 0; fpsT = now; }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
