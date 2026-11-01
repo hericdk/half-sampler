@@ -3,6 +3,9 @@
    screen's canvas text go through T(): the longest phrases first, whole words only, so a sentence wins over its words. */
 const LANGS = [['pt', 'PT', 'Português'], ['en', 'EN', 'English'], ['es', 'ES', 'Español'], ['fr', 'FR', 'Français'], ['ja', 'JA', '日本語'], ['ko', 'KO', '한국어']];
 const I18N_ROWS = [
+  ['Código aberto.', 'Open source.', 'Código abierto.', 'Code ouvert.', 'オープンソース。', '오픈 소스.'],
+  ['O ½ sampler é livre (licença AGPL-3.0): use, mude e compartilhe, desde que o que nascer dele continue livre.', 'The ½ sampler is free (AGPL-3.0 license): use it, change it and share it, as long as what comes from it stays free.', 'El ½ sampler es libre (licencia AGPL-3.0): úsalo, cámbialo y compártelo, siempre que lo que nazca de él siga libre.', 'Le ½ sampler est libre (licence AGPL-3.0) : utilisez-le, modifiez-le et partagez-le, tant que ce qui en naît reste libre.', '½ sampler はフリーです（AGPL-3.0）。使って、変えて、共有してください。そこから生まれたものも自由なままで。', '½ sampler는 자유 소프트웨어예요(AGPL-3.0). 쓰고, 바꾸고, 공유하세요. 여기서 나온 것도 자유롭게 남아야 해요.'],
+  ['código aberto no GitHub: deixe uma estrela', 'open source on GitHub: leave a star', 'código abierto en GitHub: deja una estrella', 'code ouvert sur GitHub : laissez une étoile', 'GitHubでオープンソース：スターをどうぞ', 'GitHub의 오픈 소스: 별을 남겨 주세요'],
   ['Abrir / fechar', 'Open / close', 'Abrir / cerrar', 'Ouvrir / fermer', '開く / 閉じる', '열기 / 닫기'],
   ['Um clique e a base toca em loop. Os pads acendem no ritmo.', 'One click and the beat loops. The pads light up in rhythm.', 'Un clic y la base suena en loop. Los pads se encienden al ritmo.', 'Un clic et la base tourne en boucle. Les pads s’allument en rythme.', 'ワンクリックでベースがループ。パッドがリズムに合わせて光ります。', '클릭 한 번이면 베이스가 반복돼요. 패드가 리듬에 맞춰 켜져요.'],
   ['Som da base', 'Beat sound', 'Sonido de la base', 'Son de la base', 'ベースの音', '베이스 소리'],
