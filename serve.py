@@ -12,7 +12,7 @@ GET  /__sons/wav?path=             -> that file as WAV (for what the browser can
 POST /__stems/wav  (audio/wav body)  -> {job}: a pad's sound sent from the page, split the same way
 POST ?m= / {model}: htdemucs (quick), htdemucs_ft (better, slower), htdemucs_6s (+ guitar, piano)
 GET  /__stems/<job>                -> {state, pct, stems: {drums: url, ...}}; the WAVs under /.cache/stems/<job>/
-The copies online (chuva.tech/sampler-online, sampler.half.social) use this server as their local engine: CORS for those only."""
+The copy online (sampler.half.social) uses this server as their local engine: CORS for those only."""
 import json, re, shutil, subprocess, sys, threading, time, uuid
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -27,7 +27,9 @@ IG = re.compile(r'^(https?://)?(www\.)?instagram\.com/([\w.]+/)?(reel|reels|p|tv
 JOBS = {}
 MODELS = ('htdemucs', 'htdemucs_ft', 'htdemucs_6s')                # (the user) quick / better (fine-tuned, ~4x slower) / 6 instruments (+ guitar, piano)
 STEM_NAMES = ('drums', 'bass', 'vocals', 'other', 'guitar', 'piano')
-ALLOW = {'https://chuva.tech', 'https://www.chuva.tech', 'https://sampler.half.social'}   # (the user) the sampler online finds this server on the Mac
+ALLOW = {'https://sampler.half.social'}   # (the user) the sampler online finds this server on the Mac
+if (ROOT / '_origens-locais.txt').exists():   # other copies of this machine's owner: one address per line, never versioned
+    ALLOW |= set((ROOT / '_origens-locais.txt').read_text().split())
 ALLOW |= {'http://localhost:5216', 'http://127.0.0.1:5216', 'oceano-ui://app'}   # (the user) the Oceano browser's Trilha uses it too (simulator + app)
 SONS = ROOT / 'sons'
 AUDIO = {'.wav', '.mp3', '.ogg', '.flac', '.m4a', '.aac', '.aif', '.aiff', '.opus', '.webm'}

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """(the user) the sampler for an FTP: index.html -> online/index.html (no link to the simulator, nothing that
 needs serve.py), with sampler-i18n.js and the sounds of sons/ listed in online/sons/sons.json.
-Upload the whole online folder (to sampler.half.social, server 206.189.236.35); it needs HTTPS (Web MIDI, the microphone and the screen recording ask for it).
+Upload the whole online folder (to sampler.half.social); it needs HTTPS (Web MIDI, the microphone and the screen recording ask for it).
 The sounds of sons/ go only with --sons: most packs forbid putting their raw samples on a public site."""
 import json, re, shutil, subprocess, sys
 from pathlib import Path
