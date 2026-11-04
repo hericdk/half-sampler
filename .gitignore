@@ -12,7 +12,9 @@
 /seo/*
 !/seo/og.html
 !/seo/og.png
+!/seo/og-*.png
 !/seo/device.png
+!/seo/device-*.png
 !/seo/robots.txt
 !/seo/sitemap.xml
 .DS_Store

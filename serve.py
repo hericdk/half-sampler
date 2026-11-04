@@ -30,7 +30,7 @@ STEM_NAMES = ('drums', 'bass', 'vocals', 'other', 'guitar', 'piano')
 ALLOW = {'https://sampler.half.social'}   # (the user) the sampler online finds this server on the Mac
 if (ROOT / '_origens-locais.txt').exists():   # other copies of this machine's owner: one address per line, never versioned
     ALLOW |= set((ROOT / '_origens-locais.txt').read_text().split())
-ALLOW |= {'http://localhost:5216', 'http://127.0.0.1:5216', 'oceano-ui://app'}   # (the user) the Oceano browser's Trilha uses it too (simulator + app)
+ALLOW |= {'http://localhost:5216', 'http://127.0.0.1:5216', 'oceano-ui://app', 'oceano-ui://sampler'}   # (the user) the Oceano browser's Trilha uses it too (simulator + app)
 SONS = ROOT / 'sons'
 AUDIO = {'.wav', '.mp3', '.ogg', '.flac', '.m4a', '.aac', '.aif', '.aiff', '.opus', '.webm'}
 
@@ -196,6 +196,20 @@ def stems_job(job, url, start, end, have=None, model='htdemucs'):
         J.update(state='erro', error=str(e))
 
 class H(SimpleHTTPRequestHandler):
+    def _barrado(self):
+        # (Oceano) este servidor roda programas: só atende a própria máquina e as páginas conhecidas, nunca um site qualquer
+        porta = self.server.server_address[1]
+        if self.headers.get('Host') not in (f'127.0.0.1:{porta}', f'localhost:{porta}'):
+            self.send_error(403); return True
+        origem = self.headers.get('Origin')
+        if origem and origem not in ALLOW and origem != f'http://127.0.0.1:{porta}' and origem != f'http://localhost:{porta}':
+            self.send_error(403); return True
+        # sem Origin, um <img> ou <script> de outro site ainda dispararia um pedido; só vídeo e áudio de fora passam
+        if not origem and self.headers.get('Sec-Fetch-Site') == 'cross-site' and self.headers.get('Sec-Fetch-Dest') not in ('video', 'audio'):
+            self.send_error(403); return True
+        return False
+    def list_directory(self, path):
+        self.send_error(404); return None
     def end_headers(self):
         o = self.headers.get('Origin')
         if o in ALLOW:
@@ -203,6 +217,7 @@ class H(SimpleHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store')
         super().end_headers()
     def do_OPTIONS(self):
+        if self._barrado(): return
         self.send_response(204)
         if self.headers.get('Origin') in ALLOW:
             self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); self.send_header('Access-Control-Allow-Headers', 'Content-Type')
@@ -215,6 +230,7 @@ class H(SimpleHTTPRequestHandler):
         b = json.dumps(obj, ensure_ascii=False).encode()
         self.send_response(code); self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(b))); self.end_headers(); self.wfile.write(b)
     def do_GET(self):
+        if self._barrado(): return
         u = urlparse(self.path); q = {k: v[0] for k, v in parse_qs(u.query).items()}
         if u.path == '/__yt/info':
             if not yt_ok(q.get('url')):
@@ -299,6 +315,9 @@ class H(SimpleHTTPRequestHandler):
             return self.send_json({'ready': STEMS_PY.exists(), 'models': list(MODELS)})
         super().do_GET()
     def do_POST(self):
+        if self._barrado(): return
+        if self.path.startswith('/__stems') and sum(1 for j in JOBS.values() if j.get('state') == 'na fila' or (j.get('pct', 0) < 100 and j.get('state') != 'erro')) >= 3:
+            return self.send_json({'error': 'já há separações em andamento: espere terminar'}, 429)
         n = int(self.headers.get('Content-Length', 0))
         u = urlparse(self.path); q = {k: v[0] for k, v in parse_qs(u.query).items()}
         if u.path == '/__stems/wav':                     # (the user) a pad's sound (or a video / file sent from the page) split; ?m= the model

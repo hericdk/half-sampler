@@ -939,7 +939,18 @@ const I18N = {};
 LANGS.forEach(([code], li) => { if (!li) return; const m = new Map(); I18N_ROWS.forEach((r) => m.set(r[0], r[li])); const W = /[\p{L}\p{N}]/u, keys = [...m.keys()].sort((a, b) => b.length - a.length).map((k) => (W.test(k[0]) ? '(?<![\\p{L}\\p{N}])' : '') + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + (W.test(k[k.length - 1]) ? '(?![\\p{L}\\p{N}])' : ''));   // (whole words: a key's edge that is a letter can't touch another letter)
   I18N[code] = { m, rx: new RegExp(keys.join('|'), 'gu'), cache: new Map() }; });
 let LANG = 'pt'; try { LANG = localStorage.getItem('fm1-sampler2-lang') || 'pt'; } catch (e) {}
+// (the user) on the published site each language has its address (/en/ ...), and the address decides
+const LANG_URL = (typeof window !== 'undefined' && window.SAMPLER_URL_LANG) || null, LANG_AT = LANG_URL && location.pathname.match(/^\/([a-z]{2})(\/|$)/);
+if (LANG_AT && LANG_URL[LANG_AT[1]]) LANG = LANG_AT[1];
 if (!LANGS.some((l) => l[0] === LANG)) LANG = 'pt';
+function langAddress(code) {   // the address, the title and what is shared follow the language
+  const M = LANG_URL && LANG_URL[code]; if (!M) return; const path = code === 'pt' ? '/' : '/' + code + '/', url = location.origin + path;
+  if (location.pathname !== path) history.replaceState(null, '', path + location.search + location.hash);
+  const set = (q, v) => { const e = document.head.querySelector(q); if (e) e.setAttribute(e.tagName === 'LINK' ? 'href' : 'content', v); };
+  document.title = M.title; set('meta[name=description]', M.desc); set('link[rel=canonical]', url); set('meta[property="og:url"]', url); set('meta[property="og:locale"]', M.locale);
+  set('meta[property="og:title"]', M.ogt); set('meta[property="og:description"]', M.ogd); set('meta[property="og:image"]', location.origin + '/' + M.img); set('meta[property="og:image:alt"]', M.alt);
+  set('meta[name="twitter:title"]', M.ogt); set('meta[name="twitter:description"]', M.twd); set('meta[name="twitter:image"]', location.origin + '/' + M.img);
+}
 function T(s) {
   if (LANG === 'pt' || typeof s !== 'string' || !s) return s;
   const L = I18N[LANG]; let r = L.cache.get(s); if (r !== undefined) return r;
@@ -962,6 +973,7 @@ const i18nObs = new MutationObserver((ms) => { if (i18nBusy) return; i18nBusy = 
   i18nObs.takeRecords(); i18nBusy = false; });
 function setLang(code) {
   LANG = code; try { localStorage.setItem('fm1-sampler2-lang', code); } catch (e) {}
+  langAddress(code);
   document.documentElement.lang = code === 'pt' ? 'pt-BR' : code; document.documentElement.classList.toggle('cjk', code === 'ja' || code === 'ko');
   i18nBusy = true; i18nTree(document.body); i18nObs.takeRecords(); i18nBusy = false;
   const b = document.getElementById('langB'); if (b) b.querySelector('span').textContent = LANGS.find((l) => l[0] === code)[1];
